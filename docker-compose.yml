@@ -1,0 +1,158 @@
+version: "3.8"
+
+services:
+  postgres:
+    image: postgres:14
+    container_name: postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: "${DB_USER:-postgres}"
+      POSTGRES_PASSWORD: "${DB_PASSWORD:-postgres}"
+      POSTGRES_DB: "${DB_NAME:-ti_management}"
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - ./database:/docker-entrypoint-initdb.d:ro
+    networks:
+      - ti_net
+
+  api-gateway:
+    build:
+      context: ./services/api_gateway
+      dockerfile: Dockerfile
+    container_name: api-gateway
+    restart: unless-stopped
+    depends_on:
+      - postgres
+      - equipos-service
+      - proveedores-service
+      - mantenimiento-service
+      - reportes-service
+      - agent-service
+    env_file:
+      - .env
+    environment:
+      # Conveniencia: construcción de DATABASE_URL en el contenedor desde .env
+      DATABASE_URL: "postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@postgres:5432/${DB_NAME:-ti_management}"
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./scripts:/scripts:ro
+    networks:
+      - ti_net
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: frontend
+    restart: unless-stopped
+    depends_on:
+      - api-gateway
+    env_file:
+      - .env
+    environment:
+      API_GATEWAY_URL: "http://api-gateway:8000"
+    ports:
+      - "8501:8501"
+    networks:
+      - ti_net
+
+  equipos-service:
+    build:
+      context: ./services/equipos_service
+      dockerfile: Dockerfile
+    container_name: equipos-service
+    restart: unless-stopped
+    depends_on:
+      - postgres
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: "postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@postgres:5432/${DB_NAME:-ti_management}"
+    ports:
+      - "8001:8001"
+    networks:
+      - ti_net
+
+  proveedores-service:
+    build:
+      context: ./services/proveedores_service
+      dockerfile: Dockerfile
+    container_name: proveedores-service
+    restart: unless-stopped
+    depends_on:
+      - postgres
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: "postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@postgres:5432/${DB_NAME:-ti_management}"
+    ports:
+      - "8002:8002"
+    networks:
+      - ti_net
+
+  mantenimiento-service:
+    build:
+      context: ./services/mantenimiento_service
+      dockerfile: Dockerfile
+    container_name: mantenimiento-service
+    restart: unless-stopped
+    depends_on:
+      - postgres
+      - equipos-service
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: "postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@postgres:5432/${DB_NAME:-ti_management}"
+    ports:
+      - "8003:8003"
+    networks:
+      - ti_net
+
+  reportes-service:
+    build:
+      context: ./services/reportes_service
+      dockerfile: Dockerfile
+    container_name: reportes-service
+    restart: unless-stopped
+    depends_on:
+      - postgres
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: "postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@postgres:5432/${DB_NAME:-ti_management}"
+    ports:
+      - "8004:8004"
+    volumes:
+      - reportes_data:/app/reportes
+    networks:
+      - ti_net
+
+  agent-service:
+    build:
+      context: ./services/agent_service
+      dockerfile: Dockerfile
+    container_name: agent-service
+    restart: unless-stopped
+    depends_on:
+      - postgres
+      - mantenimiento-service
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: "postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@postgres:5432/${DB_NAME:-ti_management}"
+    ports:
+      - "8005:8005"
+    networks:
+      - ti_net
+
+volumes:
+  db_data:
+  reportes_data:
+
+networks:
+  ti_net:
+    driver: bridge
+

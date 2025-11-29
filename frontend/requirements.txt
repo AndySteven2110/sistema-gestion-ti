@@ -1,0 +1,20 @@
+# Frontend - Streamlit
+streamlit==1.29.0
+
+# HTTP client
+requests==2.31.0
+
+# Data processing
+pandas==2.1.3
+numpy==1.26.2
+pyarrow==14.0.1
+
+# Visualization
+plotly==5.18.0
+altair==5.1.2
+
+# Environment variables
+python-dotenv==1.0.0
+
+# Streamlit recommended (hot reload / file watching in Docker)
+watchdog==3.0.0
