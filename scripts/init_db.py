@@ -1,12 +1,5 @@
 import os
 import psycopg2
-from psycopg2 import sql
-from dotenv import load_dotenv
-
-# ============================================
-#  Cargar variables de entorno
-# ============================================
-load_dotenv()
 
 DB_HOST = os.getenv("DB_HOST")
 DB_PORT = os.getenv("DB_PORT", "5432")
@@ -15,7 +8,6 @@ DB_USER = os.getenv("DB_USER")
 DB_PASSWORD = os.getenv("DB_PASSWORD")
 
 SCHEMA_PATH = "/database/schema.sql"
-
 
 def run_schema():
     print("📦 Cargando archivo schema.sql ...")
@@ -35,7 +27,6 @@ def run_schema():
         user=DB_USER,
         password=DB_PASSWORD
     )
-
     conn.autocommit = True
     cur = conn.cursor()
 
@@ -44,13 +35,10 @@ def run_schema():
 
     cur.close()
     conn.close()
-
-    print("✅ Base de datos inicializada correctamente.")
-
+    print("✅ Base de datos inicializada con datos de prueba.")
 
 if __name__ == "__main__":
     try:
         run_schema()
     except Exception as e:
-        print("❌ Error inicializando la base de datos:")
-        print(e)
+        print("❌ Error inicializando la base de datos:", e)

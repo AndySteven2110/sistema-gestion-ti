@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 import httpx
 
@@ -12,6 +12,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# MAPA DE MICROSERVICIOS
 SERVICE_MAP = {
     "equipos": "http://equipos-service:8001",
     "proveedores": "http://proveedores-service:8002",
@@ -21,16 +22,39 @@ SERVICE_MAP = {
 }
 
 @app.get("/health")
-def health():
+async def health():
     return {"status": "ok", "service": "api-gateway"}
 
-@app.api_route("/api/{service}/{path:path}", methods=["GET","POST","PUT","DELETE"])
-async def proxy(service: str, path: str, request: Request):
+
+# -------------------------------
+# FUNCION CENTRAL DE PROXY
+# -------------------------------
+async def forward(service: str, path: str, request: Request):
     if service not in SERVICE_MAP:
-        return {"error": f"Service '{service}' not found"}
+        raise HTTPException(404, f"Servicio '{service}' no existe")
+
     url = f"{SERVICE_MAP[service]}/{path}"
+
     async with httpx.AsyncClient() as client:
-        body=await request.body()
-        headers=dict(request.headers)
-        resp=await client.request(request.method,url,content=body,headers=headers)
+        body = await request.body()
+        resp = await client.request(
+            request.method,
+            url,
+            content=body,
+            headers=dict(request.headers)
+        )
+
+    # Si la respuesta no es JSON, devolver raw
+    try:
         return resp.json()
+    except:
+        return {"raw": resp.text}
+
+
+# -------------------------------
+# RUTA PRINCIPAL QUE USA EL FRONTEND
+# /api/<service>/<path>
+# -------------------------------
+@app.api_route("/api/{service}/{path:path}", methods=["GET", "POST", "PUT", "DELETE"])
+async def api_proxy(service: str, path: str, request: Request):
+    return await forward(service, path, request)

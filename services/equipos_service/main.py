@@ -98,7 +98,16 @@ async def get_equipos(
         for row in rows:
             equipo = dict(row)
             if equipo.get('especificaciones'):
-                equipo['especificaciones'] = json.loads(equipo['especificaciones'])
+                # Manejo seguro de JSON
+                especificaciones = equipo.get('especificaciones')
+
+                if especificaciones is None or especificaciones == "" or especificaciones.strip() == "":
+                    equipo['especificaciones'] = {}
+                else:
+                    try:
+                        equipo['especificaciones'] = json.loads(especificaciones)
+                    except:
+                        equipo['especificaciones'] = {}
             equipos.append(equipo)
         return equipos
 

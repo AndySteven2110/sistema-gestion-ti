@@ -1,0 +1,215 @@
+/* Estilos generales */
+:root {
+    --primary-color: #4a90e2;
+    --secondary-color: #5c6bc0;
+    --success-color: #4caf50;
+    --warning-color: #ff9800;
+    --danger-color: #f44336;
+    --light-color: #f8f9fa;
+    --dark-color: #343a40;
+    --text-color: #2c3e50;
+    --border-radius: 8px;
+    --box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    --transition: all 0.3s ease;
+}
+
+/* Estilos para el encabezado */
+.main-header {
+    background: linear-gradient(135deg, #4a90e2 0%, #5c6bc0 100%) !important;
+    color: white !important;
+    padding: 1.5rem 2rem !important;
+    margin: -1rem -1rem 2rem -1rem !important;
+    border-radius: 0 0 var(--border-radius) var(--border-radius);
+    box-shadow: var(--box-shadow);
+}
+
+/* Estilos para las tarjetas */
+.stCard {
+    border-radius: var(--border-radius) !important;
+    box-shadow: var(--box-shadow) !important;
+    transition: var(--transition) !important;
+    border: none !important;
+    margin-bottom: 1.5rem;
+}
+
+.stCard:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15) !important;
+}
+
+/* Estilos para los botones */
+.stButton>button {
+    border-radius: var(--border-radius) !important;
+    padding: 0.5rem 1.5rem !important;
+    font-weight: 500 !important;
+    transition: var(--transition) !important;
+    text-transform: none !important;
+}
+
+.stButton>button.primary {
+    background-color: var(--primary-color) !important;
+    border: none !important;
+}
+
+.stButton>button.primary:hover {
+    background-color: #3a7bc8 !important;
+    transform: translateY(-2px);
+}
+
+/* Estilos para los formularios */
+.stTextInput>div>div>input, 
+.stSelectbox>div>div>div,
+.stTextArea>div>div>textarea {
+    border-radius: var(--border-radius) !important;
+    border: 1px solid #ced4da !important;
+    padding: 0.5rem 1rem !important;
+}
+
+/* Estilos para las pestañas */
+.stTabs [data-baseweb="tab-list"] {
+    gap: 8px;
+    margin-bottom: 1.5rem;
+}
+
+.stTabs [data-baseweb="tab"] {
+    border-radius: var(--border-radius) !important;
+    padding: 0.5rem 1.5rem !important;
+    transition: var(--transition) !important;
+}
+
+.stTabs [aria-selected="true"] {
+    background-color: var(--primary-color) !important;
+    color: white !important;
+}
+
+/* Estilos para las tablas */
+.stDataFrame {
+    border-radius: var(--border-radius) !important;
+    box-shadow: var(--box-shadow) !important;
+    overflow: hidden;
+}
+
+/* Estilos para los mensajes */
+.stAlert {
+    border-radius: var(--border-radius) !important;
+    padding: 1rem !important;
+}
+
+/* Estilos para el sidebar */
+.css-1d391kg {
+    background-color: #f8f9fa !important;
+    border-right: 1px solid #e9ecef;
+}
+
+/* Estilos para los tooltips */
+.stTooltip {
+    border-radius: var(--border-radius) !important;
+    padding: 0.75rem 1rem !important;
+    font-size: 0.9rem !important;
+}
+
+/* Efectos de hover en filas de tabla */
+.stDataFrame tbody tr:hover {
+    background-color: rgba(74, 144, 226, 0.1) !important;
+    cursor: pointer;
+}
+
+/* Estilos para los badges */
+.badge {
+    display: inline-block;
+    padding: 0.25em 0.6em;
+    font-size: 75%;
+    font-weight: 700;
+    line-height: 1;
+    text-align: center;
+    white-space: nowrap;
+    vertical-align: baseline;
+    border-radius: 10rem;
+    transition: var(--transition);
+}
+
+.badge-primary {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+.badge-success {
+    background-color: var(--success-color);
+    color: white;
+}
+
+.badge-warning {
+    background-color: var(--warning-color);
+    color: #212529;
+}
+
+.badge-danger {
+    background-color: var(--danger-color);
+    color: white;
+}
+
+/* Estilos personalizados para los contenedores */
+.custom-container {
+    background: white;
+    border-radius: var(--border-radius);
+    padding: 1.5rem;
+    box-shadow: var(--box-shadow);
+    margin-bottom: 1.5rem;
+}
+
+/* Estilos para los iconos */
+.icon-wrapper {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background-color: rgba(74, 144, 226, 0.1);
+    margin-right: 10px;
+}
+
+/* Estilos para los tooltips */
+[data-tooltip] {
+    position: relative;
+    cursor: pointer;
+}
+
+[data-tooltip]:hover::before {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: #333;
+    color: #fff;
+    padding: 5px 10px;
+    border-radius: 4px;
+    font-size: 12px;
+    white-space: nowrap;
+    z-index: 1000;
+    margin-bottom: 5px;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+}
+
+[data-tooltip]:hover::after {
+    content: '';
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border-width: 5px;
+    border-style: solid;
+    border-color: #333 transparent transparent transparent;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+}
+
+[data-tooltip]:hover::before,
+[data-tooltip]:hover::after {
+    opacity: 1;
+    visibility: visible;
+}

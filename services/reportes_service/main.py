@@ -5,9 +5,8 @@ import asyncpg
 import os
 from datetime import datetime, date
 import pandas as pd
-from reportlab.lib.pagesizes import letter, A4
+from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
-from reportlab.lib.units import inch
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet
 import io
@@ -16,58 +15,81 @@ app = FastAPI(title="Reportes Service", version="1.0.0")
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 
+# -----------------------------
+# POOL GLOBAL (CORRECCIÓN)
+# -----------------------------
+pool = None
+
+@app.on_event("startup")
+async def startup_event():
+    global pool
+    pool = await asyncpg.create_pool(DATABASE_URL, max_size=10)
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    global pool
+    if pool:
+        await pool.close()
+
 async def get_db_pool():
-    return await asyncpg.create_pool(DATABASE_URL)
+    return pool
+# -----------------------------
+
 
 @app.get("/health")
 async def health_check():
     return {"status": "healthy", "service": "reportes"}
 
+
 @app.get("/dashboard")
 async def get_dashboard():
     pool = await get_db_pool()
-    
+
     async with pool.acquire() as conn:
         total_equipos = await conn.fetchval("SELECT COUNT(*) FROM equipos")
-        
+
         equipos_operativos = await conn.fetchval(
             "SELECT COUNT(*) FROM equipos WHERE estado_operativo = 'operativo'"
         )
-        
+
         equipos_reparacion = await conn.fetchval(
             "SELECT COUNT(*) FROM equipos WHERE estado_operativo = 'en_reparacion'"
         )
-        
+
         valor_inventario = await conn.fetchval(
             "SELECT COALESCE(SUM(costo_compra), 0) FROM equipos"
         )
-        
+
         mantenimientos_mes = await conn.fetchval("""
             SELECT COUNT(*) FROM mantenimientos
             WHERE EXTRACT(MONTH FROM fecha_programada) = EXTRACT(MONTH FROM CURRENT_DATE)
             AND EXTRACT(YEAR FROM fecha_programada) = EXTRACT(YEAR FROM CURRENT_DATE)
         """)
-        
+
         costo_mantenimiento_mes = await conn.fetchval("""
             SELECT COALESCE(SUM(costo), 0) FROM mantenimientos
             WHERE EXTRACT(MONTH FROM fecha_realizada) = EXTRACT(MONTH FROM CURRENT_DATE)
             AND EXTRACT(YEAR FROM fecha_realizada) = EXTRACT(YEAR FROM CURRENT_DATE)
         """)
-        
+
         return {
             "total_equipos": total_equipos,
             "equipos_operativos": equipos_operativos,
             "equipos_reparacion": equipos_reparacion,
-            "tasa_disponibilidad": round((equipos_operativos / total_equipos * 100) if total_equipos > 0 else 0, 2),
+            "tasa_disponibilidad": round(
+                (equipos_operativos / total_equipos * 100)
+                if total_equipos > 0 else 0, 2
+            ),
             "valor_inventario": float(valor_inventario),
             "mantenimientos_mes": mantenimientos_mes,
             "costo_mantenimiento_mes": float(costo_mantenimiento_mes)
         }
 
+
 @app.get("/equipos-por-ubicacion")
 async def get_equipos_por_ubicacion():
     pool = await get_db_pool()
-    
+
     query = """
         SELECT u.edificio || ' - ' || u.aula_oficina as ubicacion,
                COUNT(*) as cantidad
@@ -76,30 +98,32 @@ async def get_equipos_por_ubicacion():
         GROUP BY u.id, u.edificio, u.aula_oficina
         ORDER BY cantidad DESC
     """
-    
+
     async with pool.acquire() as conn:
         rows = await conn.fetch(query)
         return [dict(row) for row in rows]
 
+
 @app.get("/equipos-por-estado")
 async def get_equipos_por_estado():
     pool = await get_db_pool()
-    
+
     query = """
         SELECT estado_operativo as estado, COUNT(*) as cantidad
         FROM equipos
         GROUP BY estado_operativo
         ORDER BY cantidad DESC
     """
-    
+
     async with pool.acquire() as conn:
         rows = await conn.fetch(query)
         return [dict(row) for row in rows]
 
+
 @app.get("/equipos-por-categoria")
 async def get_equipos_por_categoria():
     pool = await get_db_pool()
-    
+
     query = """
         SELECT c.nombre as categoria, COUNT(*) as cantidad,
                COALESCE(SUM(e.costo_compra), 0) as valor_total
@@ -108,15 +132,16 @@ async def get_equipos_por_categoria():
         GROUP BY c.nombre
         ORDER BY cantidad DESC
     """
-    
+
     async with pool.acquire() as conn:
         rows = await conn.fetch(query)
         return [dict(row) for row in rows]
 
+
 @app.get("/equipos-antiguedad")
 async def get_equipos_antiguedad():
     pool = await get_db_pool()
-    
+
     query = """
         SELECT 
             CASE 
@@ -139,18 +164,19 @@ async def get_equipos_antiguedad():
                 ELSE 5
             END
     """
-    
+
     async with pool.acquire() as conn:
         rows = await conn.fetch(query)
         return [dict(row) for row in rows]
 
+
 @app.get("/costos-mantenimiento")
 async def get_costos_mantenimiento(year: Optional[int] = None):
     pool = await get_db_pool()
-    
+
     if not year:
         year = datetime.now().year
-    
+
     query = """
         SELECT 
             TO_CHAR(fecha_realizada, 'Month') as mes,
@@ -164,15 +190,16 @@ async def get_costos_mantenimiento(year: Optional[int] = None):
         GROUP BY mes, mes_num, tipo
         ORDER BY mes_num, tipo
     """
-    
+
     async with pool.acquire() as conn:
         rows = await conn.fetch(query, year)
         return [dict(row) for row in rows]
 
+
 @app.get("/mantenimientos-por-prioridad")
 async def get_mantenimientos_por_prioridad():
     pool = await get_db_pool()
-    
+
     query = """
         SELECT prioridad, COUNT(*) as cantidad
         FROM mantenimientos
@@ -186,15 +213,16 @@ async def get_mantenimientos_por_prioridad():
                 WHEN 'baja' THEN 4
             END
     """
-    
+
     async with pool.acquire() as conn:
         rows = await conn.fetch(query)
         return [dict(row) for row in rows]
 
+
 @app.get("/equipos-garantia")
 async def get_equipos_garantia():
     pool = await get_db_pool()
-    
+
     query = """
         SELECT 
             CASE 
@@ -206,16 +234,20 @@ async def get_equipos_garantia():
         FROM equipos
         GROUP BY estado_garantia
     """
-    
+
     async with pool.acquire() as conn:
         rows = await conn.fetch(query)
         return [dict(row) for row in rows]
 
+
+# -----------------------------
+# EXPORT EXCEL
+# -----------------------------
 @app.post("/export/excel")
 async def export_excel(report_data: dict):
     report_type = report_data.get("type", "equipos")
     pool = await get_db_pool()
-    
+
     try:
         if report_type == "equipos":
             query = """
@@ -228,6 +260,7 @@ async def export_excel(report_data: dict):
                 LEFT JOIN ubicaciones u ON e.ubicacion_actual_id = u.id
                 ORDER BY e.codigo_inventario
             """
+
         elif report_type == "mantenimientos":
             query = """
                 SELECT m.id, m.tipo, m.fecha_programada, m.fecha_realizada,
@@ -237,43 +270,53 @@ async def export_excel(report_data: dict):
                 JOIN equipos e ON m.equipo_id = e.id
                 ORDER BY m.fecha_programada DESC
             """
+
         else:
             raise HTTPException(status_code=400, detail="Tipo de reporte no válido")
-        
+
         async with pool.acquire() as conn:
             rows = await conn.fetch(query)
-            df = pd.DataFrame([dict(row) for row in rows])
-            
-            filename = f"/app/reportes/{report_type}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
-            os.makedirs("/app/reportes", exist_ok=True)
-            df.to_excel(filename, index=False)
-            
-            return {"filename": filename, "message": "Excel exportado exitosamente"}
-    
+
+        df = pd.DataFrame([dict(r) for r in rows])
+
+        filename = f"/app/reportes/{report_type}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+        os.makedirs("/app/reportes", exist_ok=True)
+
+        df.to_excel(filename, index=False)
+
+        return {"filename": filename, "message": "Excel exportado exitosamente"}
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al exportar: {str(e)}")
 
+
+# -----------------------------
+# EXPORT PDF
+# -----------------------------
 @app.post("/export/pdf")
 async def export_pdf(report_data: dict):
     report_type = report_data.get("type", "equipos")
     pool = await get_db_pool()
-    
+
     try:
         filename = f"/app/reportes/{report_type}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
         os.makedirs("/app/reportes", exist_ok=True)
-        
+
         doc = SimpleDocTemplate(filename, pagesize=A4)
         elements = []
         styles = getSampleStyleSheet()
-        
-        title = Paragraph(f"<b>Reporte de {report_type.capitalize()}</b>", styles['Title'])
+
+        title = Paragraph(f"<b>Reporte de {report_type.capitalize()}</b>", styles["Title"])
         elements.append(title)
         elements.append(Spacer(1, 12))
-        
-        date_str = Paragraph(f"Fecha: {datetime.now().strftime('%d/%m/%Y %H:%M')}", styles['Normal'])
+
+        date_str = Paragraph(
+            f"Fecha: {datetime.now().strftime('%d/%m/%Y %H:%M')}",
+            styles["Normal"]
+        )
         elements.append(date_str)
         elements.append(Spacer(1, 20))
-        
+
         if report_type == "equipos":
             query = """
                 SELECT e.codigo_inventario, e.nombre, c.nombre as categoria, 
@@ -285,34 +328,31 @@ async def export_pdf(report_data: dict):
                 LIMIT 50
             """
             headers = ['Código', 'Nombre', 'Categoría', 'Estado', 'Ubicación']
-        
+
         async with pool.acquire() as conn:
             rows = await conn.fetch(query)
-            
-            data = [headers]
-            for row in rows:
-                data.append([str(val)[:30] if val else '' for val in row])
-            
-            table = Table(data)
-            table.setStyle(TableStyle([
-                ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
-                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                ('FONTSIZE', (0, 0), (-1, 0), 10),
-                ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-                ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
-                ('GRID', (0, 0), (-1, -1), 1, colors.black)
-            ]))
-            
-            elements.append(table)
-        
+
+        data = [headers]
+        for row in rows:
+            data.append([str(v) if v is not None else "" for v in row])
+
+        table = Table(data)
+        table.setStyle(TableStyle([
+            ('BACKGROUND', (0,0), (-1,0), colors.grey),
+            ('TEXTCOLOR', (0,0), (-1,0), colors.whitesmoke),
+            ('ALIGN',(0,0),(-1,-1),'CENTER'),
+            ('BACKGROUND',(0,1),(-1,-1),colors.beige),
+            ('GRID',(0,0),(-1,-1),1,colors.black),
+        ]))
+
+        elements.append(table)
         doc.build(elements)
-        
+
         return {"filename": filename, "message": "PDF exportado exitosamente"}
-    
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al exportar: {str(e)}")
+
 
 if __name__ == "__main__":
     import uvicorn
